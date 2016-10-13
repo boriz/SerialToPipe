@@ -6,10 +6,12 @@ using System.Collections;
 using System.Collections.Generic;
 using CommandLine;
 using System.Threading;
+using System.Net;
 
 class Program
 {
     private const long k_ticks_per_us = 10;     // Tick is 100ns
+    private const int k_header_size = 8;
 
     private static NamedPipeServerStream _pipe;
     private static BinaryWriter _writer;
@@ -53,7 +55,7 @@ class Program
 
         // wait for wireshark to connect to pipe
         Console.WriteLine("Waiting for connection to wireshark");
-        Console.Write(@"Open wireshark and connect to interface: Local:\\.\pipe\wireshark");
+        Console.Write(@"Open wireshark and connect to interface: \\.\pipe\wireshark");
         _pipe.WaitForConnection();
         Console.WriteLine("Wireshark is connected");
 
@@ -63,11 +65,18 @@ class Program
         // Create serial parsers
         if (ar["p1"] != null)
         {
-            int baudrate = 19200;
-            if (ar["p1b"] != null && int.TryParse(ar["p1b"], out baudrate)) ;
+            int baudrate;
+            if (ar["p1b"] == null || !int.TryParse(ar["p1b"], out baudrate))
+            {
+                baudrate = 19200;
+            }
 
-            int timeout_us = 1000; // 1ms default timeout
-            if (ar["p1t"] != null && int.TryParse(ar["p1t"], out timeout_us)) ;
+            int timeout_us;
+            if (ar["p1t"] == null || !int.TryParse(ar["p1t"], out timeout_us))
+            {
+                // 1ms default timeout
+                timeout_us = 1000;
+            }
 
             List<byte> match = null;
             if (ar["p1m"] != null)
@@ -87,11 +96,18 @@ class Program
 
         if (ar["p2"] != null)
         {
-            int baudrate = 19200;
-            if (ar["p2b"] != null && int.TryParse(ar["p2b"], out baudrate)) ;
+            int baudrate;
+            if (ar["p2b"] == null || !int.TryParse(ar["p2b"], out baudrate))
+            {
+                baudrate = 19200;
+            }
 
-            int timeout_us = 1000; // 1ms default timeout
-            if (ar["p2t"] != null && int.TryParse(ar["p2t"], out timeout_us)) ;
+            int timeout_us; 
+            if (ar["p2t"] == null || !int.TryParse(ar["p2t"], out timeout_us))
+            {
+                // 1ms default timeout
+                timeout_us = 1000;
+            }
 
             List<byte> match = null;
             if (ar["p2m"] != null)
@@ -178,12 +194,29 @@ class Program
         WriteToPipe(BitConverter.GetBytes(us));
 
         // Number of bytes saved to file
-        UInt32 incl_len = (UInt32)bf.byte_buff.Count;
+        UInt32 incl_len = (UInt32)bf.byte_buff.Count + k_header_size;
         WriteToPipe(BitConverter.GetBytes(incl_len));
 
-        // Numbre of bytes captured
-        UInt32 orig_len = (UInt32)bf.byte_buff.Count;
+        // Number of bytes captured
+        UInt32 orig_len = (UInt32)bf.byte_buff.Count + k_header_size;
         WriteToPipe(BitConverter.GetBytes(orig_len));
+
+        // Add UDP header
+        // Source port
+        Int16 src_port = IPAddress.HostToNetworkOrder((Int16)bf.PortNumber);
+        WriteToPipe(BitConverter.GetBytes(src_port));
+
+        // Destination port
+        Int16 dst_port = IPAddress.HostToNetworkOrder((Int16)0);
+        WriteToPipe(BitConverter.GetBytes(dst_port));
+
+        // Lenght 
+        Int16 len = IPAddress.HostToNetworkOrder((Int16)incl_len);
+        WriteToPipe(BitConverter.GetBytes(len));
+
+        // Checksum (should be optional)
+        Int16 crc = IPAddress.HostToNetworkOrder((Int16)0);
+        WriteToPipe(BitConverter.GetBytes(crc));
 
         // Send actual packet to pipe
         WriteToPipe(bf.byte_buff.ToArray());

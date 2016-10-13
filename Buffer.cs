@@ -8,6 +8,7 @@ using System.Collections.Generic;
 /// </summary>
 public class Buffer
 {
+    public int PortNumber;
     public DateTime timestamp_dt;  // Current timestamp (datetime format)
     public List<byte> byte_buff; // Packt byte array
 

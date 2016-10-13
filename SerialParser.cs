@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO.Ports;
+using System.Text.RegularExpressions;
 
 public class SerialParser
 {
@@ -15,6 +16,7 @@ public class SerialParser
     private DateTime _last_activity_dt;
     private long _timeout_us;
     private Queue<Buffer> _fifo;
+    private int _port;
 
 
     /// <summary>
@@ -63,7 +65,7 @@ public class SerialParser
             _last_activity_dt = HightResTime.NowUTC().ToLocalTime();
 
             // Open port
-            _sp.Open();
+            //_sp.Open();
         }
         catch (Exception ex)
         {
@@ -72,6 +74,19 @@ public class SerialParser
             return false;
         }
         Console.WriteLine(". Ok");
+
+        // DEBUG
+        //byte[] b = { 0x05, 0x64, 0x08, 0xc4, 0x37, 0x00, 0x0a, 0x00, 0x3f, 0xd2, 0xc0, 0xca, 0x17, 0xb3, 0xd3};
+        //PostToFIFO(new List<byte>(b));
+        //_buff.Clear();
+
+        // Figure out com port number        
+        Match m = Regex.Match(_sp.PortName, @"\d+");
+        if (m.Length <= 0 || !int.TryParse(m.Value, out _port))
+        {
+            // Can't parse it, assign defult port
+            _port = 999;
+        }
 
         return true;
     }
@@ -180,8 +195,10 @@ public class SerialParser
             return;
         }
 
+        // Create new buffer
         Buffer bf = new Buffer(lst);
-        bf.timestamp_dt = HightResTime.NowUTC().ToLocalTime();
+        bf.timestamp_dt = HightResTime.NowUTC().ToLocalTime();                
+        bf.PortNumber = _port;
         // Be sure we are not overfilling queue
         if (_fifo.Count <= k_max_queue_size)
         {
