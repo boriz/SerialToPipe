@@ -207,7 +207,7 @@ class Program
         WriteToPipe(BitConverter.GetBytes(src_port));
 
         // Destination port
-        Int16 dst_port = IPAddress.HostToNetworkOrder((Int16)0);
+        Int16 dst_port = IPAddress.HostToNetworkOrder((Int16)bf.PortNumber);
         WriteToPipe(BitConverter.GetBytes(dst_port));
 
         // Lenght 

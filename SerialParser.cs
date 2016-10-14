@@ -65,7 +65,7 @@ public class SerialParser
             _last_activity_dt = HightResTime.NowUTC().ToLocalTime();
 
             // Open port
-            //_sp.Open();
+            _sp.Open();
         }
         catch (Exception ex)
         {
